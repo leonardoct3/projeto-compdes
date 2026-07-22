@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# data/yellow_tripdata_2025
+data/yellow_tripdata_2025/
