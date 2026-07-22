@@ -1,0 +1,48 @@
+         579772075 function calls (579756767 primitive calls) in 268.809 seconds
+
+   Ordered by: cumulative time
+   List reduced from 343 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1  144.136  144.136  268.809  268.809 /home/leonardo/compdes/projeto-compdes/baseline_nyc_taxi_sequencial.py:42(process_parquet_sequential)
+240762249   26.555    0.000   68.263    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/dtypes/missing.py:101(isna)
+ 97679786   55.113    0.000   55.139    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/arrays/datetimes.py:647(__iter__)
+240762249   41.707    0.000   41.707    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/dtypes/missing.py:184(_isna)
+      468    0.006    0.000    2.505    0.005 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/tools/datetimes.py:678(to_datetime)
+      468    0.011    0.000    2.451    0.005 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/tools/datetimes.py:211(_maybe_cache)
+      468    0.164    0.000    2.389    0.005 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/tools/datetimes.py:151(should_cache)
+      234    0.390    0.002    0.508    0.002 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pyarrow/pandas_compat.py:799(table_to_dataframe)
+      468    0.004    0.000    0.332    0.001 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:4282(__setitem__)
+      468    0.002    0.000    0.327    0.001 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:4525(_set_item)
+      468    0.001    0.000    0.261    0.001 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:5264(_sanitize_column)
+      468    0.001    0.000    0.257    0.001 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:12702(_reindex_for_setitem)
+      468    0.254    0.001    0.254    0.001 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/arrays/datetimelike.py:2380(copy)
+      234    0.001    0.000    0.092    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:1568(itertuples)
+      936    0.015    0.000    0.089    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/series.py:392(__init__)
+      234    0.000    0.000    0.087    0.000 {method 'extend' of 'list' objects}
+     1404    0.002    0.000    0.086    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:1639(<genexpr>)
+     1170    0.003    0.000    0.084    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/indexing.py:1177(__getitem__)
+     1170    0.003    0.000    0.070    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/indexing.py:1690(_getitem_tuple)
+      468    0.002    0.000    0.062    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:4492(_set_item_mgr)
+     1638    0.004    0.000    0.059    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:3994(_ixs)
+      468    0.002    0.000    0.056    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:4481(_iset_item_mgr)
+      468    0.014    0.000    0.053    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/internals/managers.py:1085(iset)
+      468    0.004    0.000    0.051    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:4073(__getitem__)
+     1170    0.005    0.000    0.051    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/indexing.py:1033(_getitem_lowerdim)
+      234    0.001    0.000    0.049    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pyarrow/pandas_compat.py:845(<listcomp>)
+      702    0.003    0.000    0.048    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pyarrow/pandas_compat.py:723(_reconstruct_block)
+      702    0.007    0.000    0.045    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/internals/api.py:39(make_block)
+     1170    0.003    0.000    0.038    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/indexing.py:1720(_getitem_axis)
+      234    0.002    0.000    0.038    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pyarrow/pandas_compat.py:965(_deserialize_column_index)
+106557/105621    0.019    0.000    0.036    0.000 {built-in method builtins.isinstance}
+     1170    0.007    0.000    0.036    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/construction.py:517(sanitize_array)
+      234    0.005    0.000    0.036    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/indexes/base.py:475(__new__)
+      468    0.002    0.000    0.034    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:4637(_get_item_cache)
+     2106    0.003    0.000    0.033    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/internals/blocks.py:2718(maybe_coerce_values)
+     1404    0.004    0.000    0.029    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/construction.py:481(ensure_wrapped_if_datetimelike)
+      234    0.001    0.000    0.024    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/arrays/datetimes.py:327(_from_sequence)
+     1638    0.003    0.000    0.024    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/frame.py:4619(_box_col_values)
+      234    0.004    0.000    0.024    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/arrays/datetimes.py:331(_from_sequence_not_strict)
+     1638    0.011    0.000    0.023    0.000 /home/leonardo/compdes/projeto-compdes/.venv/lib/python3.10/site-packages/pandas/core/internals/managers.py:1031(iget)
+
+
