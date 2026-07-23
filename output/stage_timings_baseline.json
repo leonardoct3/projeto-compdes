@@ -1,5 +1,6 @@
 {
-  "to_pandas": 0.5442030750073172,
-  "datetime_conversion": 2.8931989899938344,
-  "row_processing": 265.09559129099216
+  "to_pandas": 0.5542550800128083,
+  "datetime_conversion": 3.175533047007775,
+  "row_processing": 290.10965056297573,
+  "batch_processing": 293.3049485420306
 }

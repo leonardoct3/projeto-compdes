@@ -6,8 +6,10 @@ import json
 import pstats
 import time
 from collections import defaultdict
+from dataclasses import dataclass, field
 from io import StringIO
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 import pyarrow.dataset as ds
@@ -21,11 +23,24 @@ LOCATION_CANDIDATES = ["PULocationID", "pickup_location_id", "location_id"]
 
 INPUT_DIR = Path("data")
 OUTPUT_DIR = Path("output")
-
-# Ajuste aqui para a pasta que contém TODOS os Parquets do ano.
-# Exemplo esperado:
-# data/yellow_tripdata_2025/
 PARQUET_PATH = INPUT_DIR / "yellow_tripdata_2025"
+
+
+@dataclass
+class MetricsState:
+    total_rides: int = 0
+    rows_seen: int = 0
+    rows_valid: int = 0
+    batch_count: int = 0
+
+    sum_distance: float = 0.0
+    sum_duration_min: float = 0.0
+    sum_fare: float = 0.0
+
+    rides_by_hour: dict[int, int] = field(default_factory=lambda: defaultdict(int))
+    rides_by_location: dict[int, int] = field(default_factory=lambda: defaultdict(int))
+
+    stage_times: dict[str, float] = field(default_factory=lambda: defaultdict(float))
 
 
 def ensure_output_dir() -> None:
@@ -39,12 +54,9 @@ def pick_column(existing_columns: list[str], candidates: list[str]) -> str | Non
     return None
 
 
-def process_parquet_sequential(
+def resolve_dataset_and_columns(
     parquet_path: str | Path,
-    batch_size: int = 250_000,
-    output_json: str | Path | None = OUTPUT_DIR / "results_baseline.json",
-    stage_timing_json: str | Path | None = OUTPUT_DIR / "stage_timings_baseline.json",
-) -> dict:
+) -> tuple[ds.Dataset, dict[str, str | None], list[str]]:
     parquet_path = Path(parquet_path)
 
     if not parquet_path.exists():
@@ -56,118 +68,167 @@ def process_parquet_sequential(
     dataset = ds.dataset(str(parquet_path), format="parquet")
     schema_cols = list(dataset.schema.names)
 
-    pickup_col = pick_column(schema_cols, PICKUP_CANDIDATES)
-    dropoff_col = pick_column(schema_cols, DROPOFF_CANDIDATES)
-    distance_col = pick_column(schema_cols, DISTANCE_CANDIDATES)
-    fare_col = pick_column(schema_cols, FARE_CANDIDATES)
-    location_col = pick_column(schema_cols, LOCATION_CANDIDATES)
-
-    required_cols = [
-        c for c in [pickup_col, dropoff_col, distance_col, fare_col, location_col] if c
-    ]
+    columns = {
+        "pickup": pick_column(schema_cols, PICKUP_CANDIDATES),
+        "dropoff": pick_column(schema_cols, DROPOFF_CANDIDATES),
+        "distance": pick_column(schema_cols, DISTANCE_CANDIDATES),
+        "fare": pick_column(schema_cols, FARE_CANDIDATES),
+        "location": pick_column(schema_cols, LOCATION_CANDIDATES),
+    }
 
     if (
-        pickup_col is None
-        or dropoff_col is None
-        or distance_col is None
-        or fare_col is None
+        columns["pickup"] is None
+        or columns["dropoff"] is None
+        or columns["distance"] is None
+        or columns["fare"] is None
     ):
         raise ValueError(
             "Não encontrei colunas essenciais no parquet. "
             "Esperado algo como pickup/dropoff datetime, trip_distance e fare_amount."
         )
 
-    total_rides = 0
-    rows_seen = 0
-    rows_valid = 0
+    required_cols = [c for c in columns.values() if c is not None]
+    return dataset, columns, required_cols
 
-    sum_distance = 0.0
-    sum_duration_min = 0.0
-    sum_fare = 0.0
 
-    rides_by_hour: dict[int, int] = defaultdict(int)
-    rides_by_location: dict[int, int] = defaultdict(int)
+def convert_datetime_columns(
+    df: pd.DataFrame, pickup_col: str, dropoff_col: str
+) -> None:
+    df[pickup_col] = pd.to_datetime(df[pickup_col], errors="coerce")
+    df[dropoff_col] = pd.to_datetime(df[dropoff_col], errors="coerce")
 
-    stage_times = defaultdict(float)
-    batch_count = 0
+
+def is_valid_row(
+    pickup: Any,
+    dropoff: Any,
+    distance: Any,
+    fare: Any,
+) -> bool:
+    if pd.isna(pickup) or pd.isna(dropoff) or pd.isna(distance) or pd.isna(fare):
+        return False
+    if distance < 0 or fare < 0:
+        return False
+    if dropoff < pickup:
+        return False
+    return True
+
+
+def process_valid_row(
+    state: MetricsState,
+    pickup: pd.Timestamp,
+    dropoff: pd.Timestamp,
+    distance: Any,
+    fare: Any,
+    location: Any | None,
+) -> None:
+    state.rows_valid += 1
+    state.total_rides += 1
+
+    duration_min = (dropoff - pickup).total_seconds() / 60.0
+
+    state.sum_distance += float(distance)
+    state.sum_duration_min += float(duration_min)
+    state.sum_fare += float(fare)
+
+    state.rides_by_hour[int(pickup.hour)] += 1
+
+    if location is not None and not pd.isna(location):
+        state.rides_by_location[int(location)] += 1
+
+
+def process_batch(
+    df: pd.DataFrame,
+    columns: dict[str, str | None],
+    state: MetricsState,
+) -> None:
+    state.rows_seen += len(df)
+
+    pickup_col = columns["pickup"]
+    dropoff_col = columns["dropoff"]
+    distance_col = columns["distance"]
+    fare_col = columns["fare"]
+    location_col = columns["location"]
+
+    assert pickup_col is not None
+    assert dropoff_col is not None
+    assert distance_col is not None
+    assert fare_col is not None
+
+    t0 = time.perf_counter()
+    convert_datetime_columns(df, pickup_col, dropoff_col)
+    state.stage_times["datetime_conversion"] += time.perf_counter() - t0
+
+    col_pos = {name: idx for idx, name in enumerate(df.columns)}
+    pickup_idx = col_pos[pickup_col]
+    dropoff_idx = col_pos[dropoff_col]
+    distance_idx = col_pos[distance_col]
+    fare_idx = col_pos[fare_col]
+    location_idx = col_pos[location_col] if location_col is not None else None
+
+    t0 = time.perf_counter()
+    for row in df.itertuples(index=False, name=None):
+        pickup = row[pickup_idx]
+        dropoff = row[dropoff_idx]
+        distance = row[distance_idx]
+        fare = row[fare_idx]
+        location = row[location_idx] if location_idx is not None else None
+
+        if is_valid_row(pickup, dropoff, distance, fare):
+            process_valid_row(
+                state=state,
+                pickup=pickup,
+                dropoff=dropoff,
+                distance=distance,
+                fare=fare,
+                location=location,
+            )
+
+    state.stage_times["row_processing"] += time.perf_counter() - t0
+
+
+def process_parquet_sequential(
+    parquet_path: str | Path,
+    batch_size: int = 250_000,
+    output_json: str | Path | None = OUTPUT_DIR / "results_baseline.json",
+    stage_timing_json: str | Path | None = OUTPUT_DIR / "stage_timings_baseline.json",
+) -> dict:
+    dataset, columns, required_cols = resolve_dataset_and_columns(parquet_path)
+    state = MetricsState()
 
     overall_start = time.perf_counter()
     scanner = dataset.scanner(columns=required_cols, batch_size=batch_size)
 
     for batch in scanner.to_batches():
-        batch_count += 1
+        state.batch_count += 1
 
         t0 = time.perf_counter()
         df = batch.to_pandas()
-        stage_times["to_pandas"] += time.perf_counter() - t0
-
-        rows_seen += len(df)
+        state.stage_times["to_pandas"] += time.perf_counter() - t0
 
         t0 = time.perf_counter()
-        df[pickup_col] = pd.to_datetime(df[pickup_col], errors="coerce")
-        df[dropoff_col] = pd.to_datetime(df[dropoff_col], errors="coerce")
-        stage_times["datetime_conversion"] += time.perf_counter() - t0
-
-        col_pos = {name: idx for idx, name in enumerate(df.columns)}
-        pickup_idx = col_pos[pickup_col]
-        dropoff_idx = col_pos[dropoff_col]
-        distance_idx = col_pos[distance_col]
-        fare_idx = col_pos[fare_col]
-        location_idx = col_pos[location_col] if location_col is not None else None
-
-        t0 = time.perf_counter()
-
-        for row in df.itertuples(index=False, name=None):
-            pickup = row[pickup_idx]
-            dropoff = row[dropoff_idx]
-            distance = row[distance_idx]
-            fare = row[fare_idx]
-
-            if pd.isna(pickup) or pd.isna(dropoff) or pd.isna(distance) or pd.isna(fare):
-                continue
-
-            if distance < 0 or fare < 0:
-                continue
-
-            if dropoff < pickup:
-                continue
-
-            rows_valid += 1
-            total_rides += 1
-
-            duration_min = (dropoff - pickup).total_seconds() / 60.0
-
-            sum_distance += float(distance)
-            sum_duration_min += float(duration_min)
-            sum_fare += float(fare)
-
-            rides_by_hour[int(pickup.hour)] += 1
-
-            if location_idx is not None:
-                location = row[location_idx]
-                if not pd.isna(location):
-                    rides_by_location[int(location)] += 1
-
-        stage_times["row_processing"] += time.perf_counter() - t0
+        process_batch(df, columns, state)
+        state.stage_times["batch_processing"] += time.perf_counter() - t0
 
     elapsed = time.perf_counter() - overall_start
 
-    if total_rides == 0:
+    if state.total_rides == 0:
         raise ValueError("Nenhuma linha válida encontrada após a limpeza.")
 
     results = {
-        "total_rides": total_rides,
-        "rows_seen": rows_seen,
-        "rows_valid": rows_valid,
-        "batches_processed": batch_count,
-        "avg_distance": sum_distance / total_rides,
-        "avg_duration_min": sum_duration_min / total_rides,
-        "avg_fare": sum_fare / total_rides,
+        "total_rides": state.total_rides,
+        "rows_seen": state.rows_seen,
+        "rows_valid": state.rows_valid,
+        "batches_processed": state.batch_count,
+        "avg_distance": state.sum_distance / state.total_rides,
+        "avg_duration_min": state.sum_duration_min / state.total_rides,
+        "avg_fare": state.sum_fare / state.total_rides,
         "elapsed_seconds": elapsed,
-        "stage_times_seconds": dict(stage_times),
-        "rides_by_hour": dict(sorted(rides_by_hour.items())),
+        "stage_times_seconds": dict(state.stage_times),
+        "rides_by_hour": dict(sorted(state.rides_by_hour.items())),
         "rides_by_location_top20": dict(
-            sorted(rides_by_location.items(), key=lambda x: x[1], reverse=True)[:20]
+            sorted(state.rides_by_location.items(), key=lambda x: x[1], reverse=True)[
+                :20
+            ]
         ),
     }
 
@@ -179,7 +240,7 @@ def process_parquet_sequential(
 
     if stage_timing_json:
         Path(stage_timing_json).write_text(
-            json.dumps(dict(stage_times), indent=2, ensure_ascii=False),
+            json.dumps(dict(state.stage_times), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
 

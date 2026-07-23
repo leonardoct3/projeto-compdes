@@ -6,11 +6,12 @@
   "avg_distance": 6.378835464213206,
   "avg_duration_min": 17.336390512081184,
   "avg_fare": 20.177047350378814,
-  "elapsed_seconds": 268.80762711399984,
+  "elapsed_seconds": 294.21666952800297,
   "stage_times_seconds": {
-    "to_pandas": 0.5442030750073172,
-    "datetime_conversion": 2.8931989899938344,
-    "row_processing": 265.09559129099216
+    "to_pandas": 0.5542550800128083,
+    "datetime_conversion": 3.175533047007775,
+    "row_processing": 290.10965056297573,
+    "batch_processing": 293.3049485420306
   },
   "rides_by_hour": {
     "0": 1414781,
